@@ -25,6 +25,8 @@ You can set GEMINI_API_KEY as an environment variable or enter it at the prompt.
 import os
 import json
 import math
+import subprocess
+import sys
 from google import genai
 from google.genai import types
 
@@ -113,7 +115,10 @@ def web_search(query: str) -> str:
         query: The search query.
     """
     try:
-        from duckduckgo_search import DDGS
+        try:
+            from ddgs import DDGS
+        except ImportError:
+            from duckduckgo_search import DDGS
 
         with DDGS() as ddgs:
             results = list(ddgs.text(query, max_results=5))
@@ -127,6 +132,78 @@ def web_search(query: str) -> str:
         return "Error: duckduckgo-search not installed. Run: pip install duckduckgo-search"
     except Exception as e:
         return f"Search error: {e}"
+
+
+def code_executor(code: str, timeout_seconds: int = 10) -> str:
+    """Execute a Python snippet locally and return its output.
+
+    The snippet runs from the project directory with a bounded timeout. Use it
+    for calculations, data analysis, and processing local project files.
+
+    Args:
+        code: Python code to execute.
+        timeout_seconds: Maximum runtime, capped at 30 seconds.
+    """
+    try:
+        timeout = max(1, min(int(timeout_seconds), 30))
+        completed = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return f"Execution timed out after {timeout} seconds."
+    except Exception as e:
+        return f"Execution error: {e}"
+
+    output = completed.stdout
+    if completed.stderr:
+        output += f"\n[stderr]\n{completed.stderr}"
+    output = output.strip() or "(code ran successfully with no output)"
+    if len(output) > 10_000:
+        output = output[:10_000] + "\n... (truncated at 10,000 chars)"
+    if completed.returncode != 0:
+        return f"Process exited with code {completed.returncode}.\n{output}"
+    return output
+
+
+def research_tool(query: str, max_results: int = 5) -> str:
+    """Collect web sources for research, comparison, and summarization.
+
+    Returns source titles, snippets, and URLs so the agent can compare the
+    findings and write a grounded summary with links.
+
+    Args:
+        query: The topic or question to research.
+        max_results: Number of sources to collect, capped at 10.
+    """
+    try:
+        try:
+            from ddgs import DDGS
+        except ImportError:
+            from duckduckgo_search import DDGS
+
+        result_limit = max(1, min(int(max_results), 10))
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=result_limit))
+        if not results:
+            return "No sources found."
+
+        sources = []
+        for index, result in enumerate(results, 1):
+            sources.append(
+                f"Source {index}: {result.get('title', '(untitled)')}\n"
+                f"Summary: {result.get('body', '(no snippet available)')}\n"
+                f"URL: {result.get('href', '(no URL)')}"
+            )
+        return "Research sources for comparison:\n\n" + "\n\n".join(sources)
+    except ImportError:
+        return "Error: duckduckgo-search not installed. Run: pip install duckduckgo-search"
+    except Exception as e:
+        return f"Research error: {e}"
 
 
 def get_current_time() -> str:
@@ -147,6 +224,8 @@ TOOLS = {
     "write_file": write_file,
     "list_directory": list_directory,
     "web_search": web_search,
+    "code_executor": code_executor,
+    "research_tool": research_tool,
     "get_current_time": get_current_time,
 }
 
@@ -155,6 +234,8 @@ You are a helpful AI assistant with access to tools.
 
 Guidelines:
 - Use tools when you need real data (calculations, files, web info, time).
+- Use code_executor for local Python calculations, data analysis, and file processing.
+- Use research_tool for web research; compare multiple sources and cite their URLs.
 - Briefly explain your reasoning before calling a tool.
 - If a task needs multiple steps, do them one at a time.
 - Be concise and direct in your final answers.

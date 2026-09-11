@@ -15,6 +15,8 @@ A ReAct-style AI agent that can **think, use tools, observe results, and respond
 |------|-------------|
 | `calculator` | Evaluate math expressions (sqrt, sin, pi, etc.) |
 | `web_search` | Search the web via DuckDuckGo (free, no API key) |
+| `code_executor` | Execute bounded Python locally for analysis and file processing |
+| `research_tool` | Collect web sources for comparison and grounded summaries |
 | `read_file` | Read file contents |
 | `write_file` | Create/write files |
 | `list_directory` | List files in a directory |

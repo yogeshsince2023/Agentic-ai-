@@ -1,10 +1,8 @@
-"""
-FastAPI backend for the Agentic AI futuristic web UI.
-Serves the HTML frontend and exposes the agent as an API.
+# FastAPI backend for the Agentic AI futuristic web UI.
+# Serves the HTML frontend and exposes the agent as an API.
 
-Run: python app.py
-Opens at: http://localhost:8000
-"""
+# Run: python app.py
+# Opens at: http://localhost:8000
 
 import io
 import sys
